@@ -1,4 +1,5 @@
+streamlit
 segyio
 numpy
 matplotlib
-streamlit
+pandas
