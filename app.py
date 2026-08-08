@@ -2,17 +2,21 @@ import streamlit as st
 import segyio
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
-# إعدادات الصفحة
+# 🚨 يجب أن تكون هذه الدالة هي أول أمر Streamlit في الكود مطلقاً
 st.set_page_config(
     page_title="Seismic Data Processing Tool",
     page_layout="wide"
 )
 
+# بعد ذلك يمكنك كتابة أي أوامر Streamlit أخرى مثل st.title أو st.markdown
 st.title("🗺️ Geophysical Seismic Data Processing Tool")
 st.markdown("""
-أداة تفاعلية لمعالجة وتصوير البيانات الزلزلية الميدانية، مصممة لإبراز المهارات في الفيزياء التطبيقية والتحليل الرقمي.
+أداة تفاعلية لمعالجة وتصوير البيانات الزلزلية الميدانية.
 """)
+
+# باقي الكود ينزل هنا...
 
 # شريط رفع الملفات جانبي
 st.sidebar.header("1. تحميل البيانات")
