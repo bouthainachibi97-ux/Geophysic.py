@@ -7,7 +7,7 @@ import pandas as pd
 # 🚨 يجب أن تكون هذه الدالة هي أول أمر Streamlit في الكود مطلقاً
 st.set_page_config(
     page_title="Seismic Data Processing Tool",
-    page_layout="wide"
+    layout="wide"
 )
 
 # بعد ذلك يمكنك كتابة أي أوامر Streamlit أخرى مثل st.title أو st.markdown
