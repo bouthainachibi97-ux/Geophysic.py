@@ -4,23 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# 🚨 يجب أن تكون هذه الدالة هي أول أمر Streamlit في الكود مطلقاً
 st.set_page_config(
     page_title="Seismic Data Processing Tool",
     layout="wide"
 )
 
-# بعد ذلك يمكنك كتابة أي أوامر Streamlit أخرى مثل st.title أو st.markdown
 st.title("🗺️ Geophysical Seismic Data Processing Tool")
 st.markdown("""
 أداة تفاعلية لمعالجة وتصوير البيانات الزلزلية الميدانية.
 """)
 
-# باقي الكود ينزل هنا...
 
-# شريط رفع الملفات جانبي
 st.sidebar.header("1. تحميل البيانات")
-# ملاحظة: ملفات SEG-Y قد تكون كبيرة جداً، لذا يُنصح بملفات تدريب صغيرة
 uploaded_file = st.sidebar.file_uploader("قم برفع ملف SEG-Y (.sgy) هنا", type=["sgy", "segy"])
 
 if uploaded_file is not None:
@@ -29,12 +24,9 @@ if uploaded_file is not None:
         with open("temp_seismic.sgy", "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        # قراءة الملف باستخدام segyio
         with segyio.open("temp_seismic.sgy", mode='r+', ignore_geometry=True) as segy:
-            # الحصول على المعلومات الأساسية (Seismic Headers)
             st.subheader("📋 معلومات الملف الزلزالي (File Header Information)")
             
-            # قراءة جميع المسارات (Traces) وتحويلها لمصفوفة Numpy
             all_traces = segyio.tools.collect(segy.trace[:])
             n_traces = segy.tracecount # عدد المسارات
             sample_rate = segyio.tools.dt(segy) / 1000 # معدل أخذ العينات (milliseconds)
@@ -45,7 +37,6 @@ if uploaded_file is not None:
             col2.metric("عدد العينات لكل مسار (Samples/Trace)", f"{nsamples:,}")
             col3.metric("معدل أخذ العينات (Sample Rate)", f"{sample_rate:.1f} ms")
 
-            # --- الشريط الجانبي لبناء العمليات الجيوفيزيائية (Processing Flow) ---
             st.sidebar.header("2. سير العمليات الجيوفيزيائية (Processing Flow)")
             
             processing_steps = []
@@ -58,14 +49,12 @@ if uploaded_file is not None:
             if apply_norm:
                 processing_steps.append("Normalization")
 
-            # تصفية النطاق (Bandpass Filter) - مهم جداً في معالجة الإشارات
             apply_filter = st.sidebar.checkbox("تطبيق تصفية الترددات (Bandpass Filter)")
             if apply_filter:
                 low_freq = st.sidebar.slider("التردد المنخفض (Low Cutoff) - Hz", 1, 50, 10)
                 high_freq = st.sidebar.slider("التردد المرتفع (High Cutoff) - Hz", 20, 150, 60)
                 processing_steps.append(f"Bandpass ({low_freq}-{high_freq} Hz)")
 
-            # اختيار النطاق المراد عرضه
             st.sidebar.header("3. إعدادات العرض (Visualization Settings)")
             display_traces = st.sidebar.slider(
                 "اختر عدد المسارات للعرض:",
@@ -74,12 +63,10 @@ if uploaded_file is not None:
                 value=min(n_traces, 200)
             )
             
-            # --- تنفيذ العمليات الجيوفيزيائية (Processing Implementation) ---
             
             # 1. اختيار شريحة من البيانات
             proc_data = all_traces[:display_traces, :].copy()
             
-            # 2. تطبيق AGC (بشكل فيزيائي - مثال مبسط)
             if apply_gain:
                 # تطبيق كسب مبسط باستخدام مقلوب متوسط الجذر التربيعي لجعل الإشارات الضعيفة مرئية
                 rms = np.sqrt(np.mean(proc_data**2, axis=1))
@@ -92,7 +79,6 @@ if uploaded_file is not None:
             # ملاحظة: في المعالجة الحقيقية تُستخدم مكتبة scipy.signal، هنا للتوضيح.
             # سأستخدم "تقييد القيم" البسيط كمثال برمجي، وفي التطبيق الحقيقي يجب تطبيق Bandpass.
             
-            # 4. التطبيع (Normalization)
             if apply_norm:
                 max_val = np.max(np.abs(proc_data))
                 if max_val > 0:
