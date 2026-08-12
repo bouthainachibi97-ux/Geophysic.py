@@ -1,5 +1,6 @@
 streamlit
 segyio
 numpy
-matplotlib
 pandas
+matplotlib
+plotly
