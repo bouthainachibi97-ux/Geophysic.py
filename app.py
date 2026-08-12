@@ -1,19 +1,13 @@
 import streamlit as st
 import segyio
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 
-st.set_page_config(
-    page_title="3D Seismic Data Processing Tool",
-    layout="wide"
-)
+# --- إعدادات الصفحة ---
+st.set_page_config(page_title="3D Seismic Slicing Tool", layout="wide")
+st.title("✂️ 3D Seismic Orthogonal Slicing (Inline, Crossline, Depth)")
 
-st.title("🗺️ 3D Geophysical Seismic Data Visualization")
-st.markdown("أداة تفاعلية لمعالجة وتصوير البيانات الزلزلية في الفضاء ثلاثي الأبعاد (3D Volume).")
-
-st.sidebar.header("1. تحميل البيانات")
-uploaded_file = st.sidebar.file_uploader("قم برفع ملف SEG-Y (.sgy) هنا", type=["sgy", "segy"])
+uploaded_file = st.sidebar.file_uploader("قم برفع ملف SEG-Y (.sgy)", type=["sgy", "segy"])
 
 if uploaded_file is not None:
     try:
@@ -21,80 +15,74 @@ if uploaded_file is not None:
             f.write(uploaded_file.getbuffer())
 
         with segyio.open("temp_seismic.sgy", mode='r+', ignore_geometry=True) as segy:
-            st.subheader("📋 معلومات الملف الزلزالي")
-            
             all_traces = segyio.tools.collect(segy.trace[:])
             n_traces = segy.tracecount
-            sample_rate = segyio.tools.dt(segy) / 1000
             nsamples = segy.samples.size
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("عدد المسارات (N Traces)", f"{n_traces:,}")
-            col2.metric("عدد العينات (Samples/Trace)", f"{nsamples:,}")
-            col3.metric("معدل أخذ العينات", f"{sample_rate:.1f} ms")
+            # تحويل البيانات إلى مكعب 3D مفترض (Inlines x Crosslines x Depth)
+            ny = int(np.sqrt(n_traces))
+            nx = n_traces // ny
+            data_3d = all_traces[:nx*ny, :].reshape((nx, ny, nsamples))
 
-            # --- إعدادات المعالجة ---
-            st.sidebar.header("2. معالجة البيانات")
-            apply_gain = st.sidebar.checkbox("تطبيق كسب تلقائي (AGC)")
+            # --- أشرطة التحكم الجانبية لتحديد موضع الشرائح ---
+            st.sidebar.header("🎛️ موضع الشرائح (Slice Controls)")
             
-            display_traces = st.sidebar.slider(
-                "اختر عدد المسارات للعرض 3D:",
-                min_value=10,
-                max_value=min(n_traces, 500), # حد أقصى للحفاظ على سلاسة الأداء
-                value=min(n_traces, 100)
-            )
+            inline_idx = st.sidebar.slider("Inline Slice (X):", 0, nx - 1, nx // 2)
+            crossline_idx = st.sidebar.slider("Crossline Slice (Y):", 0, ny - 1, ny // 2)
+            depth_idx = st.sidebar.slider("Depth/Time Slice (Z):", 0, nsamples - 1, nsamples // 2)
 
-            proc_data = all_traces[:display_traces, :].copy()
+            fig = go.Figure()
 
-            if apply_gain:
-                rms = np.sqrt(np.mean(proc_data**2, axis=1))
-                rms_safe = np.where(rms == 0, 1e-10, rms)
-                proc_data = proc_data * (1.0 / rms_safe)[:, np.newaxis]
+            # 1. شريحة Inline Slice (مقطع X ثابت)
+            y_grid, z_grid = np.meshgrid(np.arange(ny), np.arange(nsamples))
+            x_inline = np.full_like(y_grid, inline_idx)
+            inline_colors = data_3d[inline_idx, :, :].T
 
-            # --- تحويل البيانات إلى شبكة ثلاثية الأبعاد (3D Grid) ---
-            # نقوم بإعادة تشكيل المصفوفة لتصبح (X, Y, Z)
-            # افترضنا هنا شبكة افتراضية (Grid) بناءً على عدد المسارات والعينات
-            grid_side = int(np.sqrt(display_traces))
-            if grid_side * grid_side == display_traces:
-                data_3d = proc_data.reshape((grid_side, grid_side, nsamples))
-            else:
-                # إذا لم تكن مربعاً كاملاً، نُنشئ أبعاداً افتراضية للمكعب
-                ny = 10 
-                nx = display_traces // ny
-                data_3d = proc_data[:nx*ny, :].reshape((nx, ny, nsamples))
-
-            # --- عرض المقطع ثلاثي الأبعاد (3D Volume Display) ---
-            st.subheader("📊 العرض التفاعلي ثلاثي الأبعاد (Interactive 3D Seismic Cube)")
-
-            X, Y, Z = np.mgrid[0:data_3d.shape[0], 0:data_3d.shape[1], 0:data_3d.shape[2]]
-
-            fig = go.Figure(data=go.Volume(
-                x=X.flatten(),
-                y=Y.flatten(),
-                z=Z.flatten(),
-                value=data_3d.flatten(),
-                isomin=np.percentile(data_3d, 10),
-                isomax=np.percentile(data_3d, 90),
-                opacity=0.1, # شفافية لإظهار باطن المكعب
-                surface_count=15, # عدد الطبقات الزلزالية المصورة
-                colorscale='Seismic',
-                colorbar=dict(title="Amplitude")
+            fig.add_trace(go.Surface(
+                x=x_inline, y=y_grid, z=z_grid,
+                surfacecolor=inline_colors,
+                colorscale='Seismic', showscale=False,
+                name='Inline Slice'
             ))
 
+            # 2. شريحة Crossline Slice (مقطع Y ثابت)
+            x_grid, z_grid_y = np.meshgrid(np.arange(nx), np.arange(nsamples))
+            y_crossline = np.full_like(x_grid, crossline_idx)
+            crossline_colors = data_3d[:, crossline_idx, :].T
+
+            fig.add_trace(go.Surface(
+                x=x_grid, y=y_crossline, z=z_grid_y,
+                surfacecolor=crossline_colors,
+                colorscale='Seismic', showscale=False,
+                name='Crossline Slice'
+            ))
+
+            # 3. شريحة Depth Slice (مقطع Z أفقي)
+            x_grid_z, y_grid_z = np.meshgrid(np.arange(nx), np.arange(ny))
+            z_depth = np.full_like(x_grid_z, depth_idx)
+            depth_colors = data_3d[:, :, depth_idx].T
+
+            fig.add_trace(go.Surface(
+                x=x_grid_z, y=y_grid_z, z=z_depth,
+                surfacecolor=depth_colors,
+                colorscale='Seismic',
+                colorbar=dict(title="Amplitude"),
+                name='Depth Slice'
+            ))
+
+            # --- ضبط أبعاد المنظر والتفاعل ---
             fig.update_layout(
                 scene=dict(
-                    xaxis_title='In-line / X',
-                    yaxis_title='Cross-line / Y',
-                    zaxis_title='Time / Depth (Samples)',
-                    zaxis=dict(autorange='reversed') # عكس محور العمق ليتجه لأسفل
+                    xaxis=dict(title='Inline / X', range=[0, nx]),
+                    yaxis=dict(title='Crossline / Y', range=[0, ny]),
+                    zaxis=dict(title='Depth / Time (Samples)', range=[0, nsamples], autorange='reversed'),
+                    aspectmode='data'
                 ),
-                margin=dict(l=0, r=0, b=0, t=40),
-                height=700
+                margin=dict(l=0, r=0, b=0, t=30),
+                height=750
             )
 
             st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
-        st.error(f"حدث خطأ أثناء المعالجة: {e}")
-else:
-    st.info("👈 يُرجى رفع ملف SEG-Y لبدء العرض ثلاثي الأبعاد.")
+        st.error(f"حدث خطأ أثناء العرض: {e}")
