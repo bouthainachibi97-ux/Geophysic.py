@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
 
-# --- إعدادات الصفحة ---
 st.set_page_config(
     page_title="Geophysical Seismic Data Processing Tool",
     layout="wide"
@@ -14,7 +13,6 @@ st.set_page_config(
 st.title("🗺️ Geophysical Seismic Data Processing & 3D Slicing Tool")
 st.markdown("أداة تفاعلية متكاملة لمعالجة وتصوير البيانات الزلزلية ثنائية وثلاثية الأبعاد.")
 
-# --- 1. الشريط الجانبي لتحميل البيانات ---
 st.sidebar.header("1. تحميل البيانات")
 uploaded_file = st.sidebar.file_uploader("قم برفع ملف SEG-Y (.sgy) هنا", type=["sgy", "segy"])
 
@@ -37,7 +35,6 @@ if uploaded_file is not None:
             col2.metric("عدد العينات لكل مسار (Samples/Trace)", f"{nsamples:,}")
             col3.metric("معدل أخذ العينات (Sample Rate)", f"{sample_rate:.1f} ms")
 
-            # --- 2. معالجة البيانات الجيوفيزيائية ---
             st.sidebar.header("2. سير العمليات (Processing Flow)")
             
             processing_steps = []
@@ -70,7 +67,6 @@ if uploaded_file is not None:
                 if max_val > 0:
                     proc_data = proc_data / max_val
 
-            # --- إنشاء التبويبات الرئيسية ---
             tab1, tab2 = st.tabs(["📊 العرض ثنائي الأبعاد (2D)", "✂️ العرض ثلاثي الأبعاد (3D Slicing)"])
 
             # ==========================================
